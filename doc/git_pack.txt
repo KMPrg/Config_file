@@ -1,0 +1,377 @@
+git + pack 管理插件
+---------------------------------------------
+Brief introduction
+.................................
+Git is a distributed version control system .
+Pack is VIM's built-in plug-in management .
+-----------
+Reference
+...................
+d: vim_plugin-Management-用git+插件管理插件.txt
+d: git-submodule_orphan.txt
+d: Vim_plugin-配置层次结构与插件加载方式.txt
+——————————————————
+pack
+---------------------------
+Open Vim and enter the following command for help
+:h packpath
+:h runtimepath
+'runtimepath' 'rtp'	string	(default:
+			Unix:  "$HOME/.vim,
+				$VIM/vimfiles,
+				$VIMRUNTIME,
+				$VIM/vimfiles/after,
+				$HOME/.vim/after"
+    添加runtimepath，被设置的directory同样可以拥有默认的runtime目录结构 . 
+This is a list of directories which will be searched for runtime
+	files:
+	  filetype.vim	filetypes by file name |new-filetype|
+	  scripts.vim	filetypes by file contents |new-filetype-scripts|
+	  autoload/	automatically loaded scripts |autoload-functions|
+	  colors/	color scheme files |:colorscheme|
+	  compiler/	compiler files |:compiler|
+	  doc/		documentation |write-local-help|
+	  ftplugin/	filetype plugins |write-filetype-plugin|
+	  import/	files that are found by `:import`
+	  indent/	indent scripts |indent-expression|
+	  keymap/	key mapping files |mbyte-keymap|
+	  lang/		menu translations |:menutrans|
+	  menu.vim	GUI menus |menu.vim|
+	  pack/		packages |:packadd|
+	  plugin/	plugin scripts |write-plugin|
+	  print/	files for printing |postscript-print-encoding|
+	  spell/	spell checking files |spell|
+	  syntax/	syntax files |mysyntaxfile|
+	  tutor/	files for vimtutor |tutor|
+:h pack
+:h packages
+:h runtime
+:h packload-two-steps
+    You can put the common functionality in an autoload directory, so that it will be found automatically .
+    Your package would have these files:
+	pack/foo/start/one/plugin/on
+		call foolib#getit()
+	pack/foo/start/two/plugin/tw
+		call foolib#getit()
+	pack/foo/start/lib/autoload/
+		func foolib#getit()
+The directory name "foo" is arbitrary, you can pick anything you like.
+          例子pack/foo/README.txt
+	pack/foo/start/foobar/plugin/foo.vim         
+	pack/foo/start/foobar/syntax/some.vim
+	pack/foo/opt/foodebug/plugin/debugger.vim
+          这里的 plugin syntax plugin 和上面 vim 默认的files分类方法一样 , 都一定程度表明了插件的用途 , 这是一种规范 .
+.................................................................................................
+vim 配置文件相当于一个预设命令集合 , 每个命令都可以在配置文件中设置 , 同时每项设置也都可在命令区输入 , 不同的只是运行格式和生效 1次还是永久.
+pack 工作流程
+    vim 每次运行启动时，都会先遍历每个 runtimepath 下的默认名称(如上)的目录下的文件 , 
+    runtimepath 可在 vim 命令行下:set runtimepath查看 , 也可对 runtimepath 进行更改 ,
+        这两种设置无效 :
+            添加一个路径到 runtimepath , set rtp+=directory , 路径中的空格用符号_ 替换
+            一次设置所有 runtimepath 路径 , set rtp=path01,path02,...  , 路径之间用英文(半角)逗号隔开
+        有效设置为 :  set packpath=$HOME/.vim/vim  ;  设置不同的 packpath 可以让你将配置文件放在不同的地方
+        packpath 后面跟上面的 pack 路径 , 即 vim 是根据 "设置的 packpath路径" 后接上 "上面的 pack/foo/.......插件路径" 搜索pack管理的插件
+            后面的路径格式是 pack/*/(opt|start)/{name}/plugin/**/*.vim
+            pack 是识别目录名 , 固定 ; 
+            * 是通配符 , 表示自定义目录名 ; 
+            (opt|start) 内置插件管理的两种模式 , 固定 , 二选一
+            {name} 是在命令行调用插件或者配置文件中设置时 , 表示插件的名字 , 一般是下载的插件的目录名字,
+                比如 git 一个 vim-auto-popmenu/plugin/abc.vim 这样目录结构的插件 , 压缩包的名字 "vim-auto-popmenu" 一般是插件名字 , 也就是上面的 {name}
+                也就是说 , 我们只需要设置 packpath  * (opt|start) 即可 , 下载的插件放在opt 或者 start 下 , opt start 后面的目录名就是调用名 {name}
+            vim命令  :packadd {name} 或 配置文件 packadd {name}
+    start 文件下的插件 pack 会自动加载 ; opt 下的插件可通过上面所示的命令在命令行启动 , 或者在配置文件中自定义启用逻辑和绑定快捷键
+——————————————————————
+git
+----------------------------------
+    获取帮助的三种等价方法
+        $ git help <verb> $ git <verb> --help $ man git-<verb>
+        用 -h 选项则获得简明的 ``help'' 输出, 例, git -h config
+..........................................................................................................
+概念 :
+    git checkout --orphan命令
+        建立空分支 (孤立分支) 的初衷就是用一个远程库管理多个本地库，一个新的空分支就是一个新的独立出来的库
+    git submodule add 命令
+        想让两个项目独立 , 同时又能在一个项目中使用另一个 , Git 通过子模块来解决这个问题 , 
+        子模块允许你将一个 Git 仓库作为另一个 Git 仓库的子目录 , 它能让你将另一个仓库克隆到自己的项目中，同时还保持提交的独立。
+.......................................
+    Git 是一个非中心的分布式版本管理系统 , 很多概念都是相对而言 .
+    例如 ,
+        若 A C 通过 B (GitHub) 同步仓库 ,
+        那么在 A 端 A 是本地 ,  B C 是远程 ; 在 C 端 C 是本地 , A B是远程 .
+        其中 B 可看作一个公共仓库 .
+.......................................
+模型如下 :
+A 本地PC端 --- 相当于 vim 配置端
+    A 又分为 orphan 分支 和 submodule 子模块
+        orphan 是用于让 Github 的一个仓库可以管理本地多个库 , 因为本地有多种软件配置 , 需要彼此独立 .
+        submodule 是用于管理插件 , 在全面掌控的前提下 , 方便升级试用删除插件 ; 每 clone 一个插件 , 就相当于将 Giuhub 上的一个仓库变为本地的一个子模块 .
+        在加载插件后 , A 中的 vim 配置文件就相当于一个主项目 , 各个插件相当于子项目 , 具体内容可参考 txt 相应部分 .
+    A 中包含插件的 vim 配置文件整体又是远程 GitHub 仓库的一个 orphan 分支 .(GitHub 中建立了一个专门用于管理配置文件的仓库)
+B GitHub端 --- 相当于 vim 远程托管端
+    A 和 C 是通过 B 进行同步 , 这样方便 .
+C 工作PC端 --- 相当于 vim 同步端
+    C 从 B 同步 A 的仓库 , 相当于 clone 的是【含有子模块的项目】, 参考txt有详细介绍 .
+.......................................
+
+具体命令 :
+----------------------------------------------
+A 端
+    (vim 配置端) vim 配置目录为 ~/.vim/vim/
+    在此次配置中 , 以插件 ... 为例
+    1. 将 vim 配置文件用 git init 初始化成一个本地仓库
+        1) 建立一个 vim 配置目录
+            set packpath=$HOME/.vim/vim   在 ~/.vim/vim/init.vim 或 ~/.vimrc 里添加此项设置
+        2) 建立 pack 插件管理目录 , 即 packpath 
+            vim 启动时会遍历 packpath 路径下的 /pack/*/start/....格式目录, 
+            mkdir -p ~/.vim/vim/pack       // 参数说明： -p 已存在不报错 , 不存在自动创建文件及其父目录
+        3) 可以根据默认 files 来设置 , 这里设置一个 complete 类别的插件
+            mkdir -p ~/.vim/vim/pack/complete/ 
+        4) 建立 opt 目录 , start放置打开必用到的插件 , 其余都放在 opt 目录 , 可以设置启动逻辑以优化或兼容
+            mkdir -p ~/.vim/vim/pack/complete/opt      start 为启动自动加载 , opt 为手动设置加载
+    2. 配置此仓库 (此项中虚线为非必要步骤 , 目的为了解 Git) 
+        1) 首先将一个已存在的 Git 仓库添加为正在工作的仓库的子模块 (git-submodule_orphan.txt 或 Pro git 7.11 submodule)
+            【已存在的 Git 仓库】相当于 GitHub上的插件仓库 ; 【正在工作的仓库】相当于 vim 配置文件 : vim目录
+                cd ~/.vim/vim
+                git init
+                cd ./pack/complete/opt
+                git submodule add --depth=1 https://github.com/....git ./pack/formal/opt/complete/...
+                git submodule add https://github.com/....git ./pack/formal/start/complete/  
+                                 语法为 : git submodule add <参数> <远程(插件)仓库地址> <指定add到本地哪个目录>
+                                 注意 , 当此目录 ./pack/formal/start/complete/ 已存在时须切换到此目录 , 此命令用于指定目录不存在时
+                       用--depth=1 不会下载历史commit , 直接下载当前最新内容 , 若没有回滚插件到以前版本的需求 , 可加此参数
+            或者
+                cd ~/.vim/vim/pack/.../opt
+                git submodule add --depth=1 https://github.com/junegunn/.....git 
+                git submodule add https://github.com/junegunn/.........git  
+                                // 不指定目录, 子模块会将子项目放到一个当前路径下与仓库同名的目录中, 即 ... 目录
+..............................................................
+    $ git status
+    $ git diff --cached fzf
+        或者
+    $ git diff --cached --submodule
+        由于我们需要把 vim 配置作为一个 orphan 分支推送到GitHub的配置仓库中, 所以现在还不能如下面这样推送
+    $ git commit -am 'added DbConnector module'     提交
+    $ git push origin master                                           推送更改
+-------------------------------------------------------------------------------------------
+A端 push到 B端
+    1. 将整个vim配置文件作为 orphan 分支推送到 GitHub中的配置仓库
+        cd ~/.vim/vim
+        git status
+        git remote add origin <SSH> //关联远程仓库
+        git checkout --orphan vim " 创建orphan分支, vim 是分支名, 用于单独存放
+                                            (注意创建了分支必须 add 文件到该分支下，否则其实没有创建成功)
+        git add . 或者 git add ./     // add 跟踪新文件, 添加到暂存区,  也可以跟目录或者单个文件
+        git commit -m "你对文件的注释" // 将暂存区内容添加到本地仓库中
+...............................................................................................................................
+        git config --global --list  // 验证邮箱与GitHub注册时输入的是否一致
+        eval "$(ssh-agent -s)"      // 开启 ssh-agent
+        ssh-add -l                        // 查看是否将密钥添加到 ssh-agent
+        ssh-add /b/DTmsys/home/.ssh/github_01_ed25519  // 没有的话 , 添加和 GitHub 关联的密钥到 ssh-agent
+        ssh -T git@github.com   // 测试
+...............................................................................................................................
+        git push origin vim	// 推送到远程仓库, 注意 : 一定要推送到对应分支上 , 推送后远程仓库即GitHub才有此分支
+        git checkout vim  #切换分支，比如切换到vim分支（切换了文件会发生变化，只会显示该分支下的文件）
+----------------------------------------------------------------------------
+    同一个命令既可以查看也可以创建 , 具体请通过查阅帮助获取语法和参数
+    git branch -a          // 查看所在目录的所有分支
+    git diff --cached // 查看修改内容
+    git submodule       // 查看子模块
+    git config -l            // 查看 git项目的地址及子模块
+    git checkout -    // 快速切换回上一个分支(两个分支之间来回切换)
+        若本地默认名是master和GitHub默认的main不一致, 导致无法提交, 可用以下命令,
+        git push origin master:main // 冒号前面的是本地分支名 , 后面的是远程分支名
+    补充：
+      git-修改远程的URL (当想用 SSH 替换 HTML时 , 可用)
+        1) 修改config文件中的对应条目地址 (目录 /.git/下)
+        2) 先删后加
+            git remote rm origin
+            git remote add origin url
+        3) 重设
+            git remote set-url 新URL 如  git remote set-url origin Git@github.com:xxx/xxx..git
+        改完查看 remote 状态以确定更改
+            git remote -v 
+....................................................................................
+    2. 创建其他 orphan 分支 , 操作同上 , 但建议切换回主分支以后再新建 orphan 分支 .
+-----------------------------------------------------------------------------------------
+C 端
+    克隆远程仓库中 含有子模块 的 vim 分支 .
+    我们选择分步进行 , 先 clone vim 分支并 pull 内容 , 然后再获取 vim分支中的子模块内容 .
+    分支部分对应的处理
+    A 端是将 vim配置 作为 orphan 分支 push到 GitHub 配置仓库 , 因此 clone 需注意克隆对应 vim 分支
+        mkdir -p ~/.vim
+        cd ./.vim
+        git clone <远程仓库地址>             // 克隆远程仓库
+    克隆指定分支
+        git clone -b <指定分支名> <远程仓库地址>   // 克隆远程指定分支
+        git clone -b vim --single-branch https://github.com/KMPrg/Config_file.git  // 只克隆名为“vim”的分支，而不是整个代码库
+           “-b”选项指定要克隆的分支名称，“--single-branch”选项告诉Git只克隆指定的分支 
+            此时 clone 的只是目录 , 并没有获取完整数据 , 以 A 端为对比来描述 , A push 的目录为 vim/* , 
+           上面两种clone , 其目录结构为 ; Config_file/* , Config_file 是GitHub上的vim分支存放的仓库名 .
+            可在 clone 时 , 在仓库地址后面加上一个自己指定的 <folder_name> , 例如 clone 到 vim 文件夹 , 命令为：
+                git clone -b <branch_name> --single-branch <repository URL> <folder_name>
+                git clone -b vim --single-branch https://github.com/KMPrg/Config_file.git vim
+    可选操作 :
+        cd  ./项目名              // 进入项目
+        git branch -a           // 查看当前所有分支
+        git checkout vim     // 切换到 vim 分支 ; git checkout -h ; git checkout [<选项>] [<分支>] -- <文件>...
+        git push origin vim // 推送到远程仓库 , 注意推送到推送到对应分支上 , 这是修改代码后的操作 ,
+                                   // 不过还需要登录 GitHub , 接受这次推送 , GitHub上的内容才会真正改变 。
+---------------------------------------------
+                        git checkout -b vim origin/vim // 创建本地分支, 需在本地创建一个和远程分支同名的分支
+                            或者
+                        git checkout -t origin/vim  // 默认会在本地建立一个和远程分支名字一样的分支
+                        错误提示：
+                            致命错误：一个名为 'vim' 的分支已经存在
+                        类似fatal: A branch named 'vim' already exists. 这样的提示 , 说明你本地已经有这个分支 , 切换进去就行 .                           
+               错误分析：
+                   背景知识 :
+                       远程仓库 clone 到本地时 , 默认名字是 main (之前叫 master , 因政治原因改名为 main) .
+                       main 和 origin 是相对的概念 , origin 是远程主机的默认仓库名 , main 是本地主机的默认仓库名 .
+                       当把一个远程 origin 仓库 clone 到本地后 , 它在本地的默认名为 main .
+                       克隆带有分支的仓库时 , 实际clone 是远程的 origin 分支 , 而origin分支里面的分支只有条目信息 , 并无完整内容 .
+                       所以需要用 git checkout -b vim origin/vim 来在本地创建和远程分支 vim 同名的分支 , 然后切进vim分支去 pull .
+                   错误提示的原因 :
+                       我们在上面指定了只 clone 远程仓库的 vim 分支, 
+                       所以提示 vim 分支已存在 , 接下来只需获取 vim 分支中的子模块(插件) , 即完成 C 端 和 A端 vim配置的同步
+                   小结 : 
+                        也就是说如果你想 clone 某个项目里的分支时 , 有两种选择 ,
+                        1) 选择直接 clone 对应分支 , 然后 pull 分支内容 ;
+                        2) 选择 clone整个仓库 , 然后创建和远程仓库同名的分支 , 然后进入分支 pull 分支内容 ,
+                        我们这里选择 1) , 因为 2) 虽然也可以获取 vim分支 , 但包含有与 vim分支无关的内容 .
+                    测试对比两种拉取结果：
+                        git clone https://github.com/KMPrg/Config_file.git , 然后
+                        cd ./Config_file
+                        git branch -a
+                        * main
+                          remotes/origin/HEAD -> origin/main
+                          remotes/origin/main
+                          remotes/origin/vim
+                     和 git clone -b vim --single-branch https://github.com/KMPrg/Config_file.git   ; cd  ./Config_file , 然后
+                         git branch -a
+                         * vim
+                           remotes/origin/vim
+                     可以看到结果明显不同。
+--------------------------------------------------------------------------------------
+子模块部分对应的处理
+    A 端将 vim 的插件作为子模块进行配置 , 因此当你在克隆这样含有子模块的项目时 , 默认会包含该子模块目录 , 但其中还没有任何文件 .
+    1. 获取clone 的 vim 分支 中的所有子模块(插件)数据
+            $ cd 子模块目录
+            $ ls       // ls 查看子模块 , 会发现其中有 ... 目录，不过是空的。
+        获取子模块数据有两种方法：
+            以下命令是获取整个项目的子模块数据 , 在项目任何目录下都可执行但最好在项目跟目录 , 
+            若只想获取特定子模块 , 请 git submodule -h 查看相关子模块参数
+            1) 运行两个命令：
+                $ git submodule init         // 此命令用来初始化本地配置文件
+                $ git submodule update   // 此命令从该项目中抓取所有数据并检出父项目中列出的合适的提交。
+                                        // 现在 ... 子目录是处在和 A 端提交GitHub时相同的状态了。
+            2) 用组合命令
+                git submodule update --init  // 将 git submodule init 和 git submodule update 合并成一步
+    2. 如果子模块(插件)中还有嵌套的子模块 , 则可以运行如下命令
+        git submodule update --init --recursive   // 初始化、抓取并检出任何嵌套的子模块
+        当然如果是这种情况，也可以在 1. 克隆分支后 , 直接执行本步骤
+------------------------------------------
+    拓展
+        1) 如果是克隆含有子模块的整个仓库 , 可以用下列命令在clone的同时自动初始化
+            $ cd .../项目
+            $ git clone --recurse-submodules https://github.com/chaconinc/MainProject
+                   若给 git clone 命令传递 --recurse-submodules 选项，
+                   它就会自动初始化并更新仓库中的每一个子模块, 包括可能存在的嵌套子模块。
+
+-----------------------------------------------------------
+A 和 C 端共同的部分
+    在包含子模块的项目上工作 , 也就是插件管理
+    更新
+        1. 更新所有第三方插件
+            cd ~/.vim/vim
+            git submodule update --recursive --remote
+        2. 更新某个第三方插件
+            cd ~/.vim/vim.
+            git submodule update [<path>...]
+            git submodule update --remote master   // Git 将会进入子模块然后抓取并更新 ; 不指定模块名的后 , Git 默认会尝试更新所有子模块
+                    // 此命令默认会假定你想要更新并检出子模块仓库的 master 分支。不过你也可以设置为想要的其他分支。 
+        3. 更新某个第三方插件-但指定版本
+            例如，你想要 Foo 子模块(插件)跟踪仓库的 “stable” 分支，
+            那么既可以在 .gitmodules 文件中设置 （这样其他人也可以跟踪它），也可以只在本地的 .git/config 文件中设置
+            在 .gitmodules 文件中设置它
+                $ git config -f .gitmodules submodule.Foo.branch stable
+                $ git submodule update --remote
+                如果不用 -f .gitmodules 选项，那么它只会为你做修改。但是在仓库中保留跟踪信息更有意义一些，因为其他人也可以得到同样的效果。
+                这时我们运行 git status，Git 会显示子模块中有“新提交”。
+                    $ git status
+                如果你设置了配置选项 status.submodulesummary，Git 也会显示你的子模块的更改摘要：
+                    $ git config status.submodulesummary 1
+                    $ git status
+                这时如果运行 git diff，可以看到我们修改了 .gitmodules 文件，同时还有几个已拉取的提交需要提交到我们自己的子模块项目中。
+                    git diff --submodule
+                我们可以直接看到将要提交到子模块中的提交日志。 提交之后，你也可以运行 git log -p 查看这个信息。
+                如果你不想每次运行 git diff 时都输入 --submodule，那么可以将 diff.submodule 设置为 “log” 来将其作为默认行为。
+                    $ git config --global diff.submodule log
+                    $ git diff
+
+    插件的调整 (浏览差异|回滚|删除)
+        1. 使用 fetch 和 merge 查看差异(即插件做了哪些改动) 
+            我们将一个更新操作拆分为数据更新+合并处理两部分，这样来看 fetch 只是进行数据更新。
+            git pull其实是 ( fetch + (merge|rebase) )组合操作，它执行数据更新同时执行合并处理。
+            git pull默认是fetch+merge 组合 ，也可以通过参数 --rebase 指定为 fetch + rebase。
+            进入到子模块目录下，执行 git pull 即可更新此子模块，git log查看相应提交 , 不过一般用上面说的子模块方式更新
+                $ cd 子模块目录                                // cd 到对象目录 , 如果直接 git fetch , 则必须先 cd 到对象目录
+                $ git fetch origin master                  // 从远程的 origin 的master 主分支下载最新版本到本地 origin/master 分支上
+                $ git log -p master..origin/master   // 比较本地的master 分支和 origin/master 分支的差别
+                $ git merge origin/master               // 合并 origin/master 到本地
+            以上操作更清晰的命令流程：
+                cd 到工作目录
+                git fetch origin master:tmp
+                git diff tmp
+                git merge tmp
+            2. reset 和 revert 回滚
+
+            3. 子模块的查看和删除
+                3.1 查看子模块名称
+                      方案一 
+                        使用与git submodule init本身相同的机制，即查看.gitmodules。该文件枚举每个子模块路径及其引用的URL。
+                        例如，从存储库的根目录开始，cat .gitmodules将内容打印到屏幕上(假设您有cat)。
+                        由于.gitmodule文件具有Git配置格式，因此可以使用git config解析这些文件：
+                            git config --file .gitmodules --name-only --get-regexp path
+                        将向您显示所有子模块条目，并带有
+                            git config --file .gitmodules --get-regexp path | awk '{ print $2 }'
+                        您只会得到子模块路径本身。
+                      方案二
+                        对显示对象有所要求，显示嵌套的子模块名称可以使用 :
+                            git submodule status  或可选的  git submodule status --recursive。
+                3.2 删除子模块
+                    子模块的项目维护地址发生了变化 , 或者需要替换子模块，就需要删除原有的子模块。
+                步骤如下：
+                     1. 删除submodule缓存
+                        cd 项目根目录
+                        git add .gitmodules           // 若改动过需要先暂存 .gitmodules 文件, 否则会报错
+                        git rm --cached <子模块位置>   // 然后删除submodule缓存 , 可根据上面查看子模块的结果来删除
+                     2. 删除submodule目录
+                        rm -rf submodule_name   // 删除子模块目录及源码
+                     3. 修改.gitmodules 此文件位于 Git 工作树的顶层目录中，是一个文本文件，其语法与 git-config [1] 的要求相匹配。
+                        cd <项目根目录>
+                        vi .gitmodules                   // 删除项目目录下.gitmodules文件中子模块相关条目
+                     4. .git/modules
+                        cd ./.git/modules
+                        tree -d
+                        rm .git/modules/* // 删除模块下的子模块目录, 每个子模块对应一个目录, 只删除对应的子模块目录
+                     5. .git/config
+                        cd
+                        vi .git/config                     // 删除git的配置文件中子模块相关条目
+                                    完成删除后 , 提交到仓库即可。
+                                    执行完成后 , 再执行添加子模块命令即可.
+            4. git 删除 orphan 分支
+                仓库常常有一个 master 分支, 表示主代码库。开发人员创建其他分支, 处理不同的特性。
+                开发人员完成处理一个特性之后 , 常常会删除相应的分支。
+                当你还在一个分支上, Git 不允许你删除此分支. 请记得先退出分支：git checkout master。
+                4.1. 删除本地分支的命令: git branch -d <branch>
+                    例如
+                    git branch -d fix/authentication                     // 删除本地分支
+                    当一个分支被推送并合并到远程分支后 , -d 才会本地删除该分支。
+                    如果一个分支还没有被推送或者合并 , 那么可以使用-D强制删除它。
+                4.2. 远程删除分支的命令: git push <remote> --delete <branch>
+                    例如
+                    git fetch -p // 先同步分支列表, 这样你的分支列表里就不会显示已远程被删除的分支了。
+                    git push origin --delete fix/authentication // 删除远程分支
+                4.3. 删除名为 "--orphan"的分支
+                    git branch -d -- --orphan
+                    -- 之后的所有内容都被视为参数而不是开关 . 这在 git(以及许多其他 Unix 程序)的许多地方都有效 .
